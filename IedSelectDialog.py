@@ -130,6 +130,7 @@ class IedSelectDialog(QDialog):
         self.ied_table.cellChanged.connect(self.refreshCheckedItemCount)
 
     def adjustSameTypeRegular(self):
+        # TODO: 同步调整所有通类型装置的导出规则
         pass
 
     def processUncheckedRow(self):
@@ -257,14 +258,17 @@ class IedSelectDialog(QDialog):
         self.operate_str.setText("等待")
         self.operate_progress.setValue(0)
 
-    def refreshCheckedItemCount(self, row=-1, column=-1):
-        if column == 0:
-            checked_item_count = 0
-            for row_num in range(self.ied_table.rowCount()):
-                if self.ied_table.item(row_num, 0).checkState() == 2:
-                    checked_item_count += 1
-            self.checked_item_count.setText(str(checked_item_count))
+    def refreshCheckedItemCount(self):
+        checked_item_count = 0
+        for row_num in range(self.ied_table.rowCount()):
+            if self.ied_table.item(row_num, 0).checkState() == 2:
+                checked_item_count += 1
+        self.checked_item_count.setText(str(checked_item_count))
 
     def refreshOperateStatus(self, operate_str="等待", operate_percent=0.0):
         self.operate_str.setText(operate_str)
         self.operate_progress.setValue(int(operate_percent))
+
+    def selectAllItemBelow(self):
+        # TODO: 选中该行下方所有装置
+        pass
