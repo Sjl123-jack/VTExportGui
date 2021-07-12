@@ -44,7 +44,7 @@ class SCL:
 
     def queryDescriptionByReference(self, reference):
         reference_type = self.queryReferenceType(reference)
-        if reference_type is None:
+        if reference_type:
             return False
         else:
             for ied in self._ied_list:
@@ -85,3 +85,13 @@ class SCL:
             pass
         elif self.queryReferenceType(reference) == 'gse_control':
             pass
+
+    def getObjectByReference(self, reference):
+        reference_type = self.queryReferenceType(reference)
+        if reference_type:
+            return False
+        else:
+            for ied in self._ied_list:
+                if reference_type == 'ied':
+                    if ied.reference == reference:
+                        return ied
