@@ -8,12 +8,11 @@ from functools import reduce
 
 
 class IedSelectDialog(QDialog):
-    def __init__(self, ied_list, scd_file_path, ied_count, process_event=None):
+    def __init__(self, ied_list, scd_file_path, ied_count):
         super().__init__()
         self.ied_list = ied_list
         self.scd_file_path = scd_file_path
         self.ied_count = ied_count
-        self.process_event = process_event
         self.ied_table = QTableWidget()
 
         self.filter_item_label = QLabel("过滤选项")
@@ -185,8 +184,7 @@ class IedSelectDialog(QDialog):
                 progress_description = '正在解析%s...' % ied_info['name']
                 self.operate_progress.setValue(progress_percent)
                 self.operate_str.setText(progress_description)
-                if self.process_event:
-                    self.process_event()
+                QApplication.processEvents()
 
             scl = SCL(self.scd_file_path, runtime_function)
             # 所需要导出的IED列表

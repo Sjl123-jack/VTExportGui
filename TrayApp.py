@@ -8,12 +8,11 @@ config = dict()
 
 
 class TrayApp(QSystemTrayIcon):
-    def __init__(self, process_event=None):
+    def __init__(self):
         super().__init__()
 
         # 一些静态属性
         self.scd_file_path = ''
-        self.process_event = process_event
 
         with open('./config.json', 'r', encoding='utf8') as configFile:
             global config
@@ -76,13 +75,13 @@ class TrayApp(QSystemTrayIcon):
                             ied_info['regular'] = 'AppidSeq'
                         ied_list.append(ied_info)
                         progress_dialog.setLabelText('正在解析%s...' % ied_info['name'])
-                        self.process_event()
+                        QApplication.processEvents()
                     elif not has_inputs and '<Inputs' in line:
                         has_inputs = True
                 if not has_inputs:
                     ied_list.pop()
             progress_dialog.destroy()
-            ied_select_dialog = IedSelectDialog(ied_list, self.scd_file_path, ied_count, self.process_event)
+            ied_select_dialog = IedSelectDialog(ied_list, self.scd_file_path, ied_count)
             ied_select_dialog.exec_()
 
     def setting(self):
