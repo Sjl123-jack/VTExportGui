@@ -1,0 +1,4 @@
+厂家标识,设备型号,站控层GOOSE模型源描述模板,过程层SV模型源描述模板,过程层GOOSE模型源描述模板,排序规则
+XJDQ,FCK-851B-DA-1,站控层GO[number%2]-A网中断,SV[number%2]中断,过程层GO[number%2]中断,VirtSeq
+XJDQ,FCK-851B-DA-4,站控层GO[number%2]-A网中断,SV[number%2]中断,过程层GO[number%2]中断,VirtSeq
+XJDQ,WMH-801D-DA-G,,,,VirtSeq
