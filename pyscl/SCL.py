@@ -44,7 +44,7 @@ class SCL:
 
     def queryDescriptionByReference(self, reference):
         reference_type = self.queryReferenceType(reference)
-        if reference_type:
+        if not reference_type:
             return False
         else:
             for ied in self._ied_list:
@@ -88,10 +88,37 @@ class SCL:
 
     def getObjectByReference(self, reference):
         reference_type = self.queryReferenceType(reference)
-        if reference_type:
+        if not reference_type:
             return False
         else:
             for ied in self._ied_list:
                 if reference_type == 'ied':
                     if ied.reference == reference:
                         return ied
+                else:
+                    for server in ied:
+                        for logic_device in server:
+                            if reference_type == 'logic_device':
+                                if logic_device.reference == reference:
+                                    return logic_device
+                            for logic_node in logic_device:
+                                if reference_type == 'logic_node':
+                                    if logic_node.reference == reference:
+                                        return logic_node
+                                for data_object in logic_node:
+                                    if reference_type == 'data_object':
+                                        if data_object.reference == reference:
+                                            return data_object
+                                if type(logic_node) == SCLLogicNodeZero:
+                                    for dataset in logic_node.getDatasetList():
+                                        if reference_type == 'dataset':
+                                            if dataset.reference == reference:
+                                                return dataset
+                                    for sampled_value_control in logic_node.getSampledValueControlList():
+                                        if reference_type == 'sampled_value_control':
+                                            if sampled_value_control.reference == reference:
+                                                return sampled_value_control
+                                    for gse_control in logic_node.getGseControlList():
+                                        if reference_type == 'gse_control':
+                                            if gse_control.reference == reference:
+                                                return gse_control

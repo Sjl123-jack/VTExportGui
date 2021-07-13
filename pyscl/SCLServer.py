@@ -1,6 +1,6 @@
 class SCLServer:
     def __init__(self, name):
-        self._name = name
+        self.name = name
         self._logic_device_list = list()
 
     def __iter__(self):

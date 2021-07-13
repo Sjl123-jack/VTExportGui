@@ -206,6 +206,8 @@ class SCLHandler(xml.sax.ContentHandler):
             self._cur_logic_node.addDataset(self._cur_dataset)
         elif tag == 'FCDA':
             self._cur_dataset.addFCDA(self._cur_fcda)
+        elif tag == 'Inputs':
+            self._cur_logic_node.setInputs(self._cur_inputs)
         elif tag == 'ExtRef':
             self._cur_inputs.addExtRef(self._cur_ext_ref)
         elif tag == 'DOI':

@@ -10,3 +10,6 @@ class SCLInputs:
 
     def addExtRef(self, ext_ref):
         self._ext_ref_list.append(ext_ref)
+
+    def getExtRefList(self):
+        return self._ext_ref_list

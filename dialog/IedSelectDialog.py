@@ -198,7 +198,7 @@ class IedSelectDialog(QDialog):
                         if export_method_class.index == export_method_index:
                             export_result[iedname] = export_method_class.generateLinkTable(iedname, scl)
 
-    def export_table(self, export_result, table_filepath):
+    def write_xlsx(self, export_result, table_filepath):
         self.operate_str.setText("导出至%s..." % table_filepath)
         self.operate_progress.setValue(95)
         # 导出至Excel表格

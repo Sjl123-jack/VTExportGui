@@ -15,12 +15,12 @@ class SettingDialog(QDialog):
         super().__init__()
         # 配置字典
         self.config_dict = dict()
-        with open('./config.json', 'r', encoding='utf8') as configFile:
+        with open('../cfg/config.json', 'r', encoding='utf8') as configFile:
             self.config_dict = json.load(configFile)
 
         # 设置窗口属性
         self.setWindowTitle('设置')
-        self.setWindowIcon(QIcon('./img/setting.png'))
+        self.setWindowIcon(QIcon('../img/setting.png'))
 
         # 创建Widget
         self.isExportSourceDescLabel = QLabel('是否导出源描述')
@@ -168,7 +168,7 @@ class SettingDialog(QDialog):
 
     def writeConfigFile(self):
         self.refreshConfigDict()
-        with open('./config.json', 'w', encoding='utf8') as configFile:
+        with open('../cfg/config.json', 'w', encoding='utf8') as configFile:
             json.dump(self.config_dict, configFile, indent=True, ensure_ascii=False)
 
     def restoreDefaultConfig(self):

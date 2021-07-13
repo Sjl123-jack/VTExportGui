@@ -7,6 +7,7 @@ class SCLLogicNodeZero(SCLLogicNode):
         self._dataset_list = list()
         self._gse_control_list = list()
         self._sampled_value_control_list = list()
+        self._inputs = None
 
     def addDataset(self, dataset):
         self._dataset_list.append(dataset)
@@ -25,3 +26,12 @@ class SCLLogicNodeZero(SCLLogicNode):
 
     def getSampledValueControlList(self):
         return self._sampled_value_control_list
+
+    def setInputs(self, inputs):
+        self._inputs = inputs
+
+    def getExtRefList(self):
+        if self._inputs:
+            return self._inputs.getExtRefList()
+        else:
+            return list()

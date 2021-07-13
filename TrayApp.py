@@ -1,8 +1,8 @@
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 import json
-from IedSelectDialog import IedSelectDialog
-from SettingDialog import SettingDialog
+from dialog.IedSelectDialog import IedSelectDialog
+from dialog.SettingDialog import SettingDialog
 
 config = dict()
 
@@ -14,12 +14,12 @@ class TrayApp(QSystemTrayIcon):
         # 一些静态属性
         self.scd_file_path = ''
 
-        with open('./config.json', 'r', encoding='utf8') as configFile:
+        with open('cfg/config.json', 'r', encoding='utf8') as configFile:
             global config
             config = json.load(configFile)
 
         # 设置任务栏图标
-        self.setIcon(QIcon('./img/icon.png'))
+        self.setIcon(QIcon('img/icon.png'))
         self.setVisible(True)
 
         # 创建Actions
@@ -27,7 +27,7 @@ class TrayApp(QSystemTrayIcon):
         self.importScdAction.triggered.connect(self.importScd)
         self.settingAction = QAction('设置', self)
         self.settingAction.triggered.connect(self.setting)
-        self.settingAction.setIcon(QIcon('./img/setting.png'))
+        self.settingAction.setIcon(QIcon('img/setting.png'))
         self.aboutAction = QAction('关于VTExportGui', self)
         self.aboutAction.triggered.connect(self.about)
         self.quitAction = QAction('退出', self)
