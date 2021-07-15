@@ -56,6 +56,13 @@ class SCLHandler(xml.sax.ContentHandler):
         self._find_vlan_priority = False
         self._find_appid = False
 
+        # 一些缓存映射，用于快速查询
+        self._dataset_gocb_dict = dict()                # <Dataset, GOCB>映射字典
+        self._ied_desc_dict = dict()                    # <IED, Description>映射字典
+        self._fcda_dataset_dict = dict()                # <FCDA, Dataset>映射字典
+        self._data_object_desc_dict = dict()            # <DataObject, Description>映射字典
+        self._data_object_unicode_desc_dict = dict()    # <DataObject, UnicodeDescription>映射字典
+
     def startElement(self, tag, attributes):
         if tag == 'Communication':
             self._cur_communication = SCLCommunication()
@@ -97,6 +104,7 @@ class SCLHandler(xml.sax.ContentHandler):
             self._cur_reference = attributes['name']
             self._cur_scl.setReferenceType(self._cur_reference, 'ied')
             self._cur_ied_index += 1
+            self._ied_desc_dict[attributes['name']] = attributes['desc']
             if self._runtime_function:
                 cur_ied_info = dict()
                 cur_ied_info['name'] = self._cur_ied.name
@@ -132,10 +140,12 @@ class SCLHandler(xml.sax.ContentHandler):
             self._cur_scl.setReferenceType(self._cur_reference, 'sampled_value_control')
         elif tag == 'FCDA':
             self._cur_fcda = SCLFCDA(attributes, self._cur_ied.getReference())
+            self._fcda_dataset_dict[repr(self._cur_fcda)] = self._cur_dataset.getReference()
         elif tag == 'DOI':
             self._cur_reference = '%s.%s' % (self._cur_logic_node.getReference(), attributes['name'])
             self._cur_data_object = SCLDataObject(attributes['name'], attributes.get('desc'), self._cur_reference)
             self._cur_scl.setReferenceType(self._cur_reference, 'data_object')
+            self._data_object_desc_dict[self._cur_reference] = attributes['name']
         elif tag == 'DAI' and attributes['name'] == 'dU':
             self._find_du = True
         elif self._find_du and tag == 'Val':
@@ -212,3 +222,6 @@ class SCLHandler(xml.sax.ContentHandler):
             self._cur_inputs.addExtRef(self._cur_ext_ref)
         elif tag == 'DOI':
             self._cur_logic_node.addDataObject(self._cur_data_object)
+
+    def getFcdaDatasetReference(self, fcda_reference):
+        return self._fcda_dataset_dict.get(fcda_reference)

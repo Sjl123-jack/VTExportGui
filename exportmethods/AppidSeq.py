@@ -26,13 +26,9 @@ class AppidSeq(ExportMethod):
             merge_datasets = list()
             for input_ in inputs:
                 ext_ref = input_.getExtRef()
-                logic_node_ref = ext_ref.split('/')[0] + '/LLN0'
-                logic_node_zero = scl.getObjectByReference(logic_node_ref)
-                for dataset in logic_node_zero.getDatasetList():
-                    for fcda in dataset:
-                        if dataset.getReference() not in merge_datasets and ext_ref == repr(fcda):
-                            merge_datasets.append(dataset.getReference())
-                QApplication.processEvents()
+                dataset = scl.getFcdaDatasetReference(ext_ref)
+                if dataset not in merge_datasets:
+                    merge_datasets.append(dataset)
             return merge_datasets
 
         datasets_tuple = tuple(map(mergerInputsToDatasets, inputs_tuple))

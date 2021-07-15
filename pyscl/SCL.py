@@ -9,8 +9,8 @@ class SCL:
         self._ied_list = list()
         self._reference_type_dict = dict()
         parser = xml.sax.make_parser()
-        handler = SCLHandler(self, runtime_function)
-        parser.setContentHandler(handler)
+        self.handler = SCLHandler(self, runtime_function)
+        parser.setContentHandler(self.handler)
         parser.parse(ied_file_path)
 
     def __iter__(self):
@@ -122,3 +122,6 @@ class SCL:
                                         if reference_type == 'gse_control':
                                             if gse_control.reference == reference:
                                                 return gse_control
+
+    def getFcdaDatasetReference(self, fcda_reference):
+        return self.handler.getFcdaDatasetReference(fcda_reference)
