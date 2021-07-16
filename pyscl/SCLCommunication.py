@@ -20,10 +20,10 @@ class SCLCommunication:
                         result_list.append((subnetwork.name, subnetwork.desc, address.ip))
         return result_list
 
-    def queryAppidByCBReference(self, cb_reference):
-        ied_name = cb_reference.split('+')[0]
-        ld_inst = cb_reference.split('+')[1].split('/')[0]
-        cb_name = cb_reference.split('.')[-1]
+    def queryAppidByControlBlockReference(self, control_block_reference):
+        ied_name = control_block_reference.split('+')[0]
+        ld_inst = control_block_reference.split('+')[1].split('/')[0]
+        cb_name = control_block_reference.split('.')[-1]
         for subnetwork in self._subnetwork_list:
             for connected_ap in subnetwork:
                 if connected_ap.ied_name == ied_name:

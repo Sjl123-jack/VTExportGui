@@ -80,11 +80,8 @@ class SCL:
                                             if gse_control.reference == reference:
                                                 return ied.desc, logic_device.desc, logic_node.desc, gse_control.desc
 
-    def queryControlBlockCommunicationParameter(self, reference):
-        if self.queryReferenceType(reference) == 'sampled_value_control':
-            pass
-        elif self.queryReferenceType(reference) == 'gse_control':
-            pass
+    def queryAppidByControlBlockReference(self, control_block_reference):
+        return self._communication.queryAppidByControlBlockReference(control_block_reference)
 
     def getObjectByReference(self, reference):
         reference_type = self.queryReferenceType(reference)
@@ -125,3 +122,10 @@ class SCL:
 
     def getFcdaDatasetReference(self, fcda_reference):
         return self.handler.getFcdaDatasetReference(fcda_reference)
+
+    def getDatasetControlBlockReference(self, dataset_reference):
+        return self.handler.getDatasetControlBlockReference(dataset_reference)
+
+    def getAppidByDatasetReference(self, dataset_reference):
+        control_block_reference = self.getDatasetControlBlockReference(dataset_reference)
+        return self.queryAppidByControlBlockReference(control_block_reference)

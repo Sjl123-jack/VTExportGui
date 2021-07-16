@@ -57,7 +57,7 @@ class SCLHandler(xml.sax.ContentHandler):
         self._find_appid = False
 
         # 一些缓存映射，用于快速查询
-        self._dataset_gocb_dict = dict()                # <Dataset, GOCB>映射字典
+        self._dataset_control_block_dict = dict()       # <Dataset, Control Block>映射字典
         self._ied_desc_dict = dict()                    # <IED, Description>映射字典
         self._fcda_dataset_dict = dict()                # <FCDA, Dataset>映射字典
         self._data_object_desc_dict = dict()            # <DataObject, Description>映射字典
@@ -134,10 +134,14 @@ class SCLHandler(xml.sax.ContentHandler):
             self._cur_reference = '%s.%s' % (self._cur_logic_node.getReference(), attributes['name'])
             self._cur_gse_control = SCLGSEControl(attributes, self._cur_reference)
             self._cur_scl.setReferenceType(self._cur_reference, 'gse_control')
+            dataset_reference = self._cur_reference.replace(self._cur_reference.split('.')[-1], attributes['datSet'])
+            self._dataset_control_block_dict[dataset_reference] = self._cur_reference
         elif tag == 'SampledValueControl':
             self._cur_reference = '%s.%s' % (self._cur_logic_node.getReference(), attributes['name'])
             self._cur_sampled_value_control = SCLSampledValueControl(attributes, self._cur_reference)
             self._cur_scl.setReferenceType(self._cur_reference, 'sampled_value_control')
+            dataset_reference = self._cur_reference.replace(self._cur_reference.split('.')[-1], attributes['datSet'])
+            self._dataset_control_block_dict[dataset_reference] = self._cur_reference
         elif tag == 'FCDA':
             self._cur_fcda = SCLFCDA(attributes, self._cur_ied.getReference())
             self._fcda_dataset_dict[repr(self._cur_fcda)] = self._cur_dataset.getReference()
@@ -174,6 +178,8 @@ class SCLHandler(xml.sax.ContentHandler):
     def endElement(self, tag):
         if tag == 'DAI':
             self._find_du = False
+        elif tag == 'Communication':
+            self._cur_scl.setCommunication(self._cur_communication)
         elif tag == 'SubNetwork':
             self._cur_communication.addSubNetwork(self._cur_subnetwork)
         elif tag == 'ConnectedAP':
@@ -225,3 +231,6 @@ class SCLHandler(xml.sax.ContentHandler):
 
     def getFcdaDatasetReference(self, fcda_reference):
         return self._fcda_dataset_dict.get(fcda_reference)
+
+    def getDatasetControlBlockReference(self, dataset_reference):
+        return self._dataset_control_block_dict.get(dataset_reference)

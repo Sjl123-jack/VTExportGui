@@ -34,4 +34,6 @@ class AppidSeq(ExportMethod):
         datasets_tuple = tuple(map(mergerInputsToDatasets, inputs_tuple))
         print(ied)
         for datasets in datasets_tuple:
-            print(datasets)
+            datasets.sort(key=lambda x: scl.getAppidByDatasetReference(x))
+            for dataset in datasets:
+                print('%s APPID:0x%x' % (dataset, scl.getAppidByDatasetReference(dataset)))
