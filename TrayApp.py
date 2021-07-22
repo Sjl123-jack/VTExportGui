@@ -1,22 +1,20 @@
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-import json
 from dialog.IedSelectDialog import IedSelectDialog
 from dialog.SettingDialog import SettingDialog
-
-config = dict()
+from GlobalConfig import GlobalConfig
 
 
 class TrayApp(QSystemTrayIcon):
     def __init__(self):
         super().__init__()
 
+        # 初始化全局设置
+        GlobalConfig.readConfigFile()
+        GlobalConfig.readDeviceDatabase()
+
         # 一些静态属性
         self.scd_file_path = ''
-
-        with open('cfg/config.json', 'r', encoding='utf8') as configFile:
-            global config
-            config = json.load(configFile)
 
         # 设置任务栏图标
         self.setIcon(QIcon('img/icon.png'))
@@ -72,7 +70,8 @@ class TrayApp(QSystemTrayIcon):
                                 ied_info['manufacturer'] = getItemContent(ied_info_item)
                             elif 'type' in ied_info_item:
                                 ied_info['type'] = getItemContent(ied_info_item)
-                            ied_info['regular'] = 'AppidSeq'
+                        _, ied_info['regular'] = GlobalConfig.queryDeviceDatabase(ied_info['manufacturer'],
+                                                                                  ied_info['type'])
                         ied_list.append(ied_info)
                         progress_dialog.setLabelText('正在解析%s...' % ied_info['name'])
                         QApplication.processEvents()
@@ -88,9 +87,6 @@ class TrayApp(QSystemTrayIcon):
         setting_dialog = SettingDialog()
         setting_dialog.apply_config.connect(self.refreshGlobalConfig)
         setting_dialog.exec_()
-
-    def refreshGlobalConfig(self, config_dict):
-        self.global_config = config_dict
 
     def about(self):
         pass

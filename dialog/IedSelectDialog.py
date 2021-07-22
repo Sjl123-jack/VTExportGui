@@ -5,6 +5,7 @@ from pyscl.SCL import SCL
 from exportmethods import *
 import xlsxwriter
 from functools import reduce
+from GlobalConfig import GlobalConfig
 
 
 class IedSelectDialog(QDialog):
@@ -198,65 +199,63 @@ class IedSelectDialog(QDialog):
                         if export_method_class.index == export_method_index:
                             export_result[iedname] = export_method_class.generateLinkTable(iedname, scl)
 
-    def write_xlsx(self, export_result, table_filepath):
-        self.operate_str.setText("导出至%s..." % table_filepath)
-        self.operate_progress.setValue(95)
-        # 导出至Excel表格
-        workbook = xlsxwriter.Workbook(table_filepath)
+            self.operate_str.setText("导出至%s..." % table_filepath)
+            self.operate_progress.setValue(95)
+            # 导出至Excel表格
+            workbook = xlsxwriter.Workbook(table_filepath)
 
-        # 单元格样式
-        header_format = workbook.add_format({
-            'align': 'center',
-            'bold': 'true',
-            'fg_color': '#D1D1D1'
-        })
-        field_format = workbook.add_format({
-            'align': 'center'
-        })
+            # 单元格样式
+            header_format = workbook.add_format({
+                'align': 'center',
+                'bold': 'true',
+                'fg_color': '#D1D1D1'
+            })
+            field_format = workbook.add_format({
+                'align': 'center'
+            })
 
-        for ied in export_result.values():
-            worksheet = workbook.add_worksheet(ied['iedname'])
-            worksheet.set_column(0, 0, width=30)
-            worksheet.set_column(1, 1, width=60)
-            row = 0
-            for accesspoint in ied['accesspoints']:
-                header = '过程层GOOSE断链表'
-                linktype = 'GOOSE'
-                if accesspoint['name'] == 'S1':
-                    header = '站控层GOOSE断链表'
-                elif accesspoint['name'] == 'M1':
-                    header = '过程层SV断链表'
-                    linktype = 'SV'
-                worksheet.merge_range('A%s:B%s' % (row + 1, row + 1), header, header_format)
-                worksheet.write(row + 1, 0, '模型源描述', field_format)
-                worksheet.write(row + 1, 1, '断链信息描述', field_format)
-                row += 2
-                for dataset in accesspoint['extdsrefs']:
-                    ex_iedname = dataset[0].split('+')[0]
-                    ex_ieddesc = self.iedname_desc_map[ex_iedname]
-                    replace_tuple_list = [self.export_template_lineedit.text(),
-                                          ('[InIedname]', ied['iedname']),
-                                          ('[InIedDesc]', ied['description']),
-                                          ('[ExIedname]', ex_iedname),
-                                          ('[ExIedDesc]', ex_ieddesc),
-                                          ('[LinkType]',  linktype),
-                                          ('[Appid]',     dataset[1])]
-                    link_desc = reduce(lambda x, y: x.replace(y[0], y[1]), replace_tuple_list)
-                    worksheet.write(row, 1, link_desc)
-                    row += 1
-                row += 1
-        try:
-            workbook.close()
-        except Exception:
-            self.refreshOperateStatus("导出失败", 95)
-            QMessageBox.critical(None, "导出失败", "断链表导出至 %s 失败" % (table_filepath))
+            for ied_name in export_result.keys():
+                ied_result = export_result.get(ied_name)
+                worksheet = workbook.add_worksheet(ied_name)
+                worksheet.set_column(0, 0, width=30)
+                worksheet.set_column(1, 1, width=60)
+                row = 0
+                for index, ap_result in list(enumerate(ied_result)):
+                    header_dict = {0: '站控层GOOSE断链表', 1: '过程层SV断链表', 2: '过程层GOOSE断链表'}
+                    link_type_dict = {0: 'GOOSE', 1: 'SV', 2: 'GOOSE'}
+                    if len(ap_result):
+                        worksheet.merge_range('A%s:B%s' % (row + 1, row + 1), header_dict[index], header_format)
+                        worksheet.write(row + 1, 0, '模型源描述', field_format)
+                        worksheet.write(row + 1, 1, '断链信息描述', field_format)
+                        row += 2
+                        for dataset_reference in ap_result:
+                            external_ied_name = dataset_reference.split('+')[0]
+                            external_ied_desc = scl.queryDescriptionByReference(external_ied_name)
+                            ied_desc = scl.queryDescriptionByReference(ied_name)
+                            appid_string = '%4X' % scl.getAppidByDatasetReference(dataset_reference)
+                            replace_tuple_list = [GlobalConfig.config_dict['linkDescTemplate'],
+                                                  ('[InIedname]', ied_name),
+                                                  ('[InIedDesc]', ied_desc),
+                                                  ('[ExIedname]', external_ied_name),
+                                                  ('[ExIedDesc]', external_ied_desc),
+                                                  ('[LinkType]',  link_type_dict[index]),
+                                                  ('[Appid]', appid_string)]
+                            link_desc = reduce(lambda x, y: x.replace(y[0], y[1]), replace_tuple_list)
+                            worksheet.write(row, 1, link_desc)
+                            row += 1
+                        row += 1
+            try:
+                workbook.close()
+            except Exception:
+                self.refreshOperateStatus("导出失败", 95)
+                QMessageBox.critical(None, "导出失败", "断链表导出至 %s 失败" % (table_filepath))
+                self.operate_str.setText("等待")
+                self.operate_progress.setValue(0)
+                return
+
+            QMessageBox.information(None, "导出成功", "断链表导出至 %s 成功" % (table_filepath))
             self.operate_str.setText("等待")
             self.operate_progress.setValue(0)
-            return
-
-        QMessageBox.information(None, "导出成功", "断链表导出至 %s 成功" % (table_filepath))
-        self.operate_str.setText("等待")
-        self.operate_progress.setValue(0)
 
     def refreshCheckedItemCount(self):
         checked_item_count = 0

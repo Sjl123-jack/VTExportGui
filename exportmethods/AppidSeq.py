@@ -1,6 +1,5 @@
 from .ExportMethod import ExportMethod
 from pyscl.SCLLogicNodeZero import SCLLogicNodeZero
-from PyQt5.QtWidgets import QApplication
 
 
 class AppidSeq(ExportMethod):
@@ -11,7 +10,6 @@ class AppidSeq(ExportMethod):
 
     @staticmethod
     def generateLinkTable(iedname, scl):
-        # TODO: 完善APPID排序的相关算法
         ied = scl.getObjectByReference(iedname)
         inputs_tuple = (list(), list(), list())
         server_type_dict = {'S1': 0, 'M1': 1, 'G1': 2}
@@ -26,14 +24,12 @@ class AppidSeq(ExportMethod):
             merge_datasets = list()
             for input_ in inputs:
                 ext_ref = input_.getExtRef()
-                dataset = scl.getFcdaDatasetReference(ext_ref)
-                if dataset not in merge_datasets:
-                    merge_datasets.append(dataset)
+                dataset_reference = scl.getFcdaDatasetReference(ext_ref)
+                if dataset_reference not in merge_datasets:
+                    merge_datasets.append(dataset_reference)
             return merge_datasets
-
         datasets_tuple = tuple(map(mergerInputsToDatasets, inputs_tuple))
-        print(ied)
         for datasets in datasets_tuple:
             datasets.sort(key=lambda x: scl.getAppidByDatasetReference(x))
-            for dataset in datasets:
-                print('%s APPID:0x%x' % (dataset, scl.getAppidByDatasetReference(dataset)))
+
+        return datasets_tuple
