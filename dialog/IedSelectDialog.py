@@ -1,10 +1,10 @@
-from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon
 from pyscl.SCL import SCL
 from exportmethods import *
 import xlsxwriter
-from functools import reduce
+from functools import reduce, partial
 from GlobalConfig import GlobalConfig
 
 
@@ -67,7 +67,26 @@ class IedSelectDialog(QDialog):
         self.operate_progress.setFixedWidth(200)
         self.statusBar.addWidget(self.operate_progress)
 
+        self.pop_menu = QMenu()
+        self.select_current_ied_action = QAction('选中该装置')
+        self.select_current_ied_action.setIcon(QIcon('./img/add.png'))
+        self.deselect_current_ied_action = QAction('取消选中该装置')
+        self.deselect_current_ied_action.setIcon(QIcon('./img/delete.png'))
+        self.adjust_same_type_action = QAction('同步同型号规则')
+        self.adjust_same_type_action.setIcon(QIcon('./img/sync.png'))
+        self.adjust_same_type_action.triggered.connect(self.adjustSameTypeRegular)
+        self.select_all_item_below_action = QAction('选中下方所有装置')
+        self.select_all_item_below_action.setIcon(QIcon('./img/down.png'))
+        self.select_all_item_below_action.triggered.connect(self.selectAllItemBelow)
+        self.pop_menu.addActions([self.select_current_ied_action, self.deselect_current_ied_action,
+                                  self.adjust_same_type_action, self.select_all_item_below_action])
+        self.ied_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ied_table.customContextMenuRequested.connect(self.popContextMenu)
+
         self.initUI()
+        if GlobalConfig.config_dict['isRelateClassRegular']:
+            for row in range(self.ied_table.rowCount()):
+                self.ied_table.cellWidget(row, 5).currentIndexChanged.connect(self.adjustSameTypeRegular)
 
     def initUI(self):
         self.createIedTable()
@@ -96,6 +115,7 @@ class IedSelectDialog(QDialog):
 
         # 设置对话框的一些属性
         self.setWindowTitle('导出断链表-[%s]' % self.scd_file_path)
+        self.setWindowIcon(QIcon('./img/export.png'))
         self.setMinimumWidth(1200)
         self.setMinimumHeight(700)
 
@@ -130,9 +150,20 @@ class IedSelectDialog(QDialog):
 
         self.ied_table.cellChanged.connect(self.refreshCheckedItemCount)
 
+    def popContextMenu(self, pos):
+        screen_pos = self.ied_table.mapToGlobal(pos)
+        self.pop_menu.popup(screen_pos)
+
+    # 同步调整所有通类型装置的导出规则
     def adjustSameTypeRegular(self):
-        # TODO: 同步调整所有通类型装置的导出规则
-        pass
+        current_row = self.ied_table.currentRow()
+        current_ied_fingerprint = '[%s]-[%s]' % tuple(map(lambda x: self.ied_table.item(current_row, x).text(), [4, 3]))
+        current_ied_regular = self.ied_table.cellWidget(current_row, 5).currentIndex()
+        row_count = self.ied_table.rowCount()
+        for row in range(0, row_count):
+            ied_fingerprint = '[%s]-[%s]' % tuple(map(lambda x: self.ied_table.item(row, x).text(), [4, 3]))
+            if ied_fingerprint == current_ied_fingerprint and row != current_row:
+                self.ied_table.cellWidget(row, 5).setCurrentIndex(current_ied_regular)
 
     def processUncheckedRow(self):
         if self.process_unchecked_item_btn.text() == "隐藏非选中项":
@@ -248,12 +279,12 @@ class IedSelectDialog(QDialog):
                 workbook.close()
             except Exception:
                 self.refreshOperateStatus("导出失败", 95)
-                QMessageBox.critical(None, "导出失败", "断链表导出至 %s 失败" % (table_filepath))
+                QMessageBox.critical(None, "导出失败", "断链表导出至 %s 失败" % table_filepath)
                 self.operate_str.setText("等待")
                 self.operate_progress.setValue(0)
                 return
 
-            QMessageBox.information(None, "导出成功", "断链表导出至 %s 成功" % (table_filepath))
+            QMessageBox.information(None, "导出成功", "断链表导出至 %s 成功" % table_filepath)
             self.operate_str.setText("等待")
             self.operate_progress.setValue(0)
 
@@ -268,6 +299,9 @@ class IedSelectDialog(QDialog):
         self.operate_str.setText(operate_str)
         self.operate_progress.setValue(int(operate_percent))
 
+    # 选中该行下方所有装置
     def selectAllItemBelow(self):
-        # TODO: 选中该行下方所有装置
-        pass
+        current_row = self.ied_table.currentRow()
+        row_count = self.ied_table.rowCount()
+        for row in range(current_row, row_count):
+            self.ied_table.item(row, 0).setCheckState(Qt.Checked)

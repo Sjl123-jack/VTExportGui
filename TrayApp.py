@@ -23,12 +23,17 @@ class TrayApp(QSystemTrayIcon):
         # 创建Actions
         self.importScdAction = QAction('打开SCD', self)
         self.importScdAction.triggered.connect(self.importScd)
+        self.importScdAction.setIcon(QIcon('img/open.png'))
         self.settingAction = QAction('设置', self)
         self.settingAction.triggered.connect(self.setting)
         self.settingAction.setIcon(QIcon('img/setting.png'))
+        self.helpAction = QAction('帮助', self)
+        self.helpAction.setIcon(QIcon('img/help.png'))
         self.aboutAction = QAction('关于VTExportGui', self)
         self.aboutAction.triggered.connect(self.about)
+        self.aboutAction.setIcon(QIcon('img/help.png'))
         self.quitAction = QAction('退出', self)
+        self.quitAction.setIcon(QIcon('img/quit.png'))
 
         # 设置任务栏图标菜单
         tray_menu = QMenu()
@@ -85,7 +90,7 @@ class TrayApp(QSystemTrayIcon):
 
     def setting(self):
         setting_dialog = SettingDialog()
-        setting_dialog.apply_config.connect(self.refreshGlobalConfig)
+        setting_dialog.apply_config.connect(GlobalConfig.refreshConfig)
         setting_dialog.exec_()
 
     def about(self):

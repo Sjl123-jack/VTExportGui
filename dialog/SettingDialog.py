@@ -1,9 +1,8 @@
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
 from PyQt5.Qt import *
 from PyQt5.QtCore import pyqtSignal
 import json
 from functools import partial
+from GlobalConfig import GlobalConfig
 import re
 
 
@@ -13,10 +12,6 @@ class SettingDialog(QDialog):
 
     def __init__(self):
         super().__init__()
-        # 配置字典
-        self.config_dict = dict()
-        with open('../cfg/config.json', 'r', encoding='utf8') as configFile:
-            self.config_dict = json.load(configFile)
 
         # 设置窗口属性
         self.setWindowTitle('设置')
@@ -76,10 +71,10 @@ class SettingDialog(QDialog):
         self.initUI()
 
     def initUI(self):
-        isExportSouceDescLayout = QHBoxLayout()
-        isExportSouceDescLayout.addWidget(self.isExportSourceDescLabel)
-        isExportSouceDescLayout.addWidget(self.isExportSourceDescCheckBox)
-        isExportSouceDescLayout.addStretch()
+        isExportSourceDescLayout = QHBoxLayout()
+        isExportSourceDescLayout.addWidget(self.isExportSourceDescLabel)
+        isExportSourceDescLayout.addWidget(self.isExportSourceDescCheckBox)
+        isExportSourceDescLayout.addStretch()
 
         isRelateClassRegularLayout = QHBoxLayout()
         isRelateClassRegularLayout.addWidget(self.isRelateClassRegularLabel)
@@ -112,7 +107,7 @@ class SettingDialog(QDialog):
         buttonLayout.addWidget(self.cancelButton)
 
         mainLayout = QVBoxLayout()
-        mainLayout.addLayout(isExportSouceDescLayout)
+        mainLayout.addLayout(isExportSourceDescLayout)
         mainLayout.addLayout(isRelateClassRegularLayout)
         mainLayout.addLayout(exportModeLayout)
         mainLayout.addLayout(linkDescTempalteLayout)
@@ -125,28 +120,28 @@ class SettingDialog(QDialog):
 
     def refreshWidget(self):
         # 根据config_dict设置各个widget属性
-        if self.config_dict.get('isExportSourceDesc'):
+        if GlobalConfig.config_dict.get('isExportSourceDesc'):
             self.isExportSourceDescCheckBox.setCheckState(Qt.Checked)
         else:
             self.isExportSourceDescCheckBox.setCheckState(Qt.Unchecked)
 
-        if self.config_dict.get('isRelateClassRegular'):
+        if GlobalConfig.config_dict.get('isRelateClassRegular'):
             self.isRelateClassRegularCheckBox.setCheckState(Qt.Checked)
         else:
             self.isRelateClassRegularCheckBox.setCheckState(Qt.Unchecked)
 
-        self.exportModeComboBox.setCurrentIndex(self.config_dict.get('exportMode'))
-        self.linkDescTemplateLineEdit.setText(self.config_dict.get('linkDescTemplate'))
+        self.exportModeComboBox.setCurrentIndex(GlobalConfig.config_dict.get('exportMode'))
+        self.linkDescTemplateLineEdit.setText(GlobalConfig.config_dict.get('linkDescTemplate'))
 
-    def enableApplyAndSave(self, isEnable):
-        self.applyButton.setEnabled(isEnable)
-        self.saveButton.setEnabled(isEnable)
+    def enableApplyAndSave(self, is_enable):
+        self.applyButton.setEnabled(is_enable)
+        self.saveButton.setEnabled(is_enable)
 
     def refreshConfigDict(self):
-        self.config_dict['isExportSourceDesc'] = self.isExportSourceDescCheckBox.isChecked()
-        self.config_dict['isRelateClassRegular'] = self.isRelateClassRegularCheckBox.isChecked()
-        self.config_dict['exportMode'] = self.exportModeComboBox.currentIndex()
-        self.config_dict['linkDescTemplate'] = self.linkDescTemplateLineEdit.text()
+        GlobalConfig.config_dict['isExportSourceDesc'] = self.isExportSourceDescCheckBox.isChecked()
+        GlobalConfig.config_dict['isRelateClassRegular'] = self.isRelateClassRegularCheckBox.isChecked()
+        GlobalConfig.config_dict['exportMode'] = self.exportModeComboBox.currentIndex()
+        GlobalConfig.config_dict['linkDescTemplate'] = self.linkDescTemplateLineEdit.text()
 
     def checkLinkDescValid(self):
         keyword_pattern = re.compile(r'\[\w+\]')
@@ -164,23 +159,20 @@ class SettingDialog(QDialog):
 
     def applyConfig(self):
         self.refreshConfigDict()
-        self.apply_config.emit(self.config_dict)
+        self.apply_config.emit(GlobalConfig.config_dict)
 
     def writeConfigFile(self):
         self.refreshConfigDict()
         with open('../cfg/config.json', 'w', encoding='utf8') as configFile:
-            json.dump(self.config_dict, configFile, indent=True, ensure_ascii=False)
+            json.dump(GlobalConfig.config_dict, configFile, indent=True, ensure_ascii=False)
 
     def restoreDefaultConfig(self):
-        self.config_dict['isExportSourceDesc'] = False
-        self.config_dict['isRelateClassRegular'] = True
-        self.config_dict['exportMode'] = 0
-        self.config_dict['linkDescTemplate'] = '接收[ExIedDesc][LinkType]链路中断(0x[Appid])'
+        GlobalConfig.config_dict['isExportSourceDesc'] = False
+        GlobalConfig.config_dict['isRelateClassRegular'] = True
+        GlobalConfig.config_dict['exportMode'] = 0
+        GlobalConfig.config_dict['linkDescTemplate'] = '接收[ExIedDesc][LinkType]链路中断(0x[Appid])'
         self.refreshWidget()
         self.checkLinkDescValidButton.setEnabled(False)
         self.enableApplyAndSave(False)
         self.applyConfig()
         self.writeConfigFile()
-
-    def getConfig(self):
-        return self.config_dict
