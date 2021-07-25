@@ -128,4 +128,7 @@ class SCL:
 
     def getAppidByDatasetReference(self, dataset_reference):
         control_block_reference = self.getDatasetControlBlockReference(dataset_reference)
-        return self.queryAppidByControlBlockReference(control_block_reference)
+        if self.queryAppidByControlBlockReference(control_block_reference):
+            return self.queryAppidByControlBlockReference(control_block_reference)
+        else:
+            return -1

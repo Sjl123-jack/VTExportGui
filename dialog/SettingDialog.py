@@ -163,7 +163,7 @@ class SettingDialog(QDialog):
 
     def writeConfigFile(self):
         self.refreshConfigDict()
-        with open('../cfg/config.json', 'w', encoding='utf8') as configFile:
+        with open('cfg/config.json', 'w', encoding='utf8') as configFile:
             json.dump(GlobalConfig.config_dict, configFile, indent=True, ensure_ascii=False)
 
     def restoreDefaultConfig(self):

@@ -25,7 +25,7 @@ class AppidSeq(ExportMethod):
             for input_ in inputs:
                 ext_ref = input_.getExtRef()
                 dataset_reference = scl.getFcdaDatasetReference(ext_ref)
-                if dataset_reference not in merge_datasets:
+                if dataset_reference and dataset_reference not in merge_datasets:
                     merge_datasets.append(dataset_reference)
             return merge_datasets
         datasets_tuple = tuple(map(mergerInputsToDatasets, inputs_tuple))

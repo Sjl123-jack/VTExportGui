@@ -1,3 +1,5 @@
+import re
+
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from dialog.IedSelectDialog import IedSelectDialog
@@ -31,7 +33,7 @@ class TrayApp(QSystemTrayIcon):
         self.helpAction.setIcon(QIcon('img/help.png'))
         self.aboutAction = QAction('关于VTExportGui', self)
         self.aboutAction.triggered.connect(self.about)
-        self.aboutAction.setIcon(QIcon('img/help.png'))
+        self.aboutAction.setIcon(QIcon('img/about.png'))
         self.quitAction = QAction('退出', self)
         self.quitAction.setIcon(QIcon('img/quit.png'))
 
@@ -57,26 +59,22 @@ class TrayApp(QSystemTrayIcon):
                 for line in scl_file:
                     if '<IED' in line:
                         ied_count += 1
+
                         ied_info = dict()
+                        attribute_regx = re.compile('[a-zA-Z]+=".*?"')
+                        attributes_str_list = attribute_regx.findall(line)
+                        for attributes_str in attributes_str_list:
+                            attribute_name = attributes_str.split('=')[0]
+                            attribute_value = attributes_str.split('=')[1].strip('"')
+                            ied_info[attribute_name] = attribute_value
+
                         if has_inputs:
                             has_inputs = False
                         elif ied_list:
                             ied_list.pop()
 
-                        def getItemContent(split_item):
-                            return split_item.split('"')[1].strip('"')
-
-                        for ied_info_item in line.split(' '):
-                            if 'name' in ied_info_item:
-                                ied_info['name'] = getItemContent(ied_info_item)
-                            elif 'desc' in ied_info_item:
-                                ied_info['desc'] = getItemContent(ied_info_item)
-                            elif 'manufacturer' in ied_info_item:
-                                ied_info['manufacturer'] = getItemContent(ied_info_item)
-                            elif 'type' in ied_info_item:
-                                ied_info['type'] = getItemContent(ied_info_item)
-                        _, ied_info['regular'] = GlobalConfig.queryDeviceDatabase(ied_info['manufacturer'],
-                                                                                  ied_info['type'])
+                        _, ied_info['regular'] = GlobalConfig.queryDeviceDatabase(ied_info.get('manufacturer'),
+                                                                                  ied_info.get('type'))
                         ied_list.append(ied_info)
                         progress_dialog.setLabelText('正在解析%s...' % ied_info['name'])
                         QApplication.processEvents()
@@ -88,6 +86,7 @@ class TrayApp(QSystemTrayIcon):
             ied_select_dialog = IedSelectDialog(ied_list, self.scd_file_path, ied_count)
             ied_select_dialog.exec_()
 
+    @staticmethod
     def setting(self):
         setting_dialog = SettingDialog()
         setting_dialog.apply_config.connect(GlobalConfig.refreshConfig)

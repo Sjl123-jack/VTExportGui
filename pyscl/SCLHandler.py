@@ -128,7 +128,7 @@ class SCLHandler(xml.sax.ContentHandler):
                 self._cur_logic_node = SCLLogicNode(attributes, self._cur_reference)
         elif tag == 'DataSet':
             self._cur_reference = '%s.%s' % (self._cur_logic_node.getReference(), attributes['name'])
-            self._cur_dataset = SCLDataset(attributes['name'], attributes['desc'], self._cur_reference)
+            self._cur_dataset = SCLDataset(attributes['name'], attributes.get('desc', ''), self._cur_reference)
             self._cur_scl.setReferenceType(self._cur_reference, 'dataset')
         elif tag == 'GSEControl':
             self._cur_reference = '%s.%s' % (self._cur_logic_node.getReference(), attributes['name'])

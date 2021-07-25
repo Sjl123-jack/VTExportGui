@@ -4,7 +4,7 @@ from PyQt5.QtGui import QIcon
 from pyscl.SCL import SCL
 from exportmethods import *
 import xlsxwriter
-from functools import reduce, partial
+from functools import reduce
 from GlobalConfig import GlobalConfig
 
 
@@ -139,7 +139,7 @@ class IedSelectDialog(QDialog):
             self.ied_table.setItem(row_num, 1, QTableWidgetItem(ied['name']))
             self.ied_table.setItem(row_num, 2, QTableWidgetItem(ied['desc']))
             self.ied_table.setItem(row_num, 3, QTableWidgetItem(ied['type']))
-            self.ied_table.setItem(row_num, 4, QTableWidgetItem(ied['manufacturer']))
+            self.ied_table.setItem(row_num, 4, QTableWidgetItem(ied.get('manufacturer', '')))
             regular_combobox = QComboBox()
             regular_combobox.addItems(regular_combobox_items)
             for export_method_class in ExportMethod.__subclasses__():
@@ -207,7 +207,7 @@ class IedSelectDialog(QDialog):
         scd_file_name = self.scd_file_path.split('/')[-1]
         scd_file_dir = self.scd_file_path.replace(scd_file_name, '')
         default_table_file_name = scd_file_name.replace('.scd', '断链信息表.xlsx')
-        default_table_file_name = default_table_file_name.replace('.scd', '断链信息表.xlsx')
+        default_table_file_name = default_table_file_name.replace('.SCD', '断链信息表.xlsx')
         table_filepath = QFileDialog.getSaveFileName(None, "请选择导出路径", default_table_file_name,
                                                      "Microsoft Excel文件(*.xlsx)", scd_file_dir)[0]
         if table_filepath != '':
@@ -236,6 +236,9 @@ class IedSelectDialog(QDialog):
             workbook = xlsxwriter.Workbook(table_filepath)
 
             # 单元格样式
+            ied_header_format = workbook.add_format({
+                'align': 'center'
+            })
             header_format = workbook.add_format({
                 'align': 'center',
                 'bold': 'true',
@@ -245,12 +248,22 @@ class IedSelectDialog(QDialog):
                 'align': 'center'
             })
 
+            if GlobalConfig.config_dict['exportMode'] == 2:
+                worksheet = workbook.add_worksheet('全站断链表')
+                row = 0
+
             for ied_name in export_result.keys():
                 ied_result = export_result.get(ied_name)
-                worksheet = workbook.add_worksheet(ied_name)
+                ied_desc = scl.queryDescriptionByReference(ied_name)
+                if GlobalConfig.config_dict['exportMode'] == 0:
+                    worksheet = workbook.add_worksheet(ied_name)
+                    row = 0
+                elif GlobalConfig.config_dict['exportMode'] == 2:
+                    ied_title = '%s:%s断链信息表' % (ied_name, ied_desc)
+                    worksheet.merge_range('A%s:B%s' % (row + 1, row + 1), ied_title, ied_header_format)
+                    row += 1
                 worksheet.set_column(0, 0, width=30)
                 worksheet.set_column(1, 1, width=60)
-                row = 0
                 for index, ap_result in list(enumerate(ied_result)):
                     header_dict = {0: '站控层GOOSE断链表', 1: '过程层SV断链表', 2: '过程层GOOSE断链表'}
                     link_type_dict = {0: 'GOOSE', 1: 'SV', 2: 'GOOSE'}
@@ -262,8 +275,7 @@ class IedSelectDialog(QDialog):
                         for dataset_reference in ap_result:
                             external_ied_name = dataset_reference.split('+')[0]
                             external_ied_desc = scl.queryDescriptionByReference(external_ied_name)
-                            ied_desc = scl.queryDescriptionByReference(ied_name)
-                            appid_string = '%4X' % scl.getAppidByDatasetReference(dataset_reference)
+                            appid_string = '%04X' % scl.getAppidByDatasetReference(dataset_reference)
                             replace_tuple_list = [GlobalConfig.config_dict['linkDescTemplate'],
                                                   ('[InIedname]', ied_name),
                                                   ('[InIedDesc]', ied_desc),
@@ -274,7 +286,10 @@ class IedSelectDialog(QDialog):
                             link_desc = reduce(lambda x, y: x.replace(y[0], y[1]), replace_tuple_list)
                             worksheet.write(row, 1, link_desc)
                             row += 1
-                        row += 1
+                        if GlobalConfig.config_dict['exportMode'] == 0:
+                            row += 1
+                if GlobalConfig.config_dict['exportMode'] == 2:
+                    row += 3
             try:
                 workbook.close()
             except Exception:
@@ -304,4 +319,5 @@ class IedSelectDialog(QDialog):
         current_row = self.ied_table.currentRow()
         row_count = self.ied_table.rowCount()
         for row in range(current_row, row_count):
-            self.ied_table.item(row, 0).setCheckState(Qt.Checked)
+            if not self.ied_table.isRowHidden(row):
+                self.ied_table.item(row, 0).setCheckState(Qt.Checked)
