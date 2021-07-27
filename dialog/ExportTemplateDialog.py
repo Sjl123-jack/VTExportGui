@@ -4,9 +4,9 @@ from PyQt5.QtGui import QIcon
 
 
 class ExportTemplateDialog(QDialog):
-    def __init__(self, export_type_set):
+    def __init__(self, export_type_list):
         super().__init__()
-        self.export_type_set = export_type_set
+        self.export_type_set = export_type_list
 
         # 设置对话框属性
         self.setWindowTitle('编辑导出模板')
@@ -31,6 +31,8 @@ class ExportTemplateDialog(QDialog):
         main_layout.addWidget(self.template_table)
         main_layout.addLayout(button_layout)
 
+        self.setLayout(main_layout)
+
     def createTemplateTable(self):
         self.template_table.setColumnCount(5)
         self.template_table.setRowCount(len(self.export_type_set))
@@ -38,4 +40,4 @@ class ExportTemplateDialog(QDialog):
                                                        '过程层GOOSE模板'])
         self.template_table
         for index, ied_type in enumerate(self.export_type_set):
-            self.template_table.item(index, 0).setflags()
+            self.template_table.setItem(index, 0, QTableWidgetItem(ied_type))

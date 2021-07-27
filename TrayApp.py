@@ -59,7 +59,7 @@ class TrayApp(QSystemTrayIcon):
                 for line in scl_file:
                     if '<IED' in line:
                         ied_count += 1
-
+                        line = line.split('>')[0]
                         ied_info = dict()
                         attribute_regx = re.compile('[a-zA-Z]+=".*?"')
                         attributes_str_list = attribute_regx.findall(line)

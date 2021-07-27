@@ -5,6 +5,7 @@ from pyscl.SCL import SCL
 from exportmethods import *
 import xlsxwriter
 from functools import reduce
+from .ExportTemplateDialog import ExportTemplateDialog
 from GlobalConfig import GlobalConfig
 
 
@@ -211,6 +212,17 @@ class IedSelectDialog(QDialog):
         table_filepath = QFileDialog.getSaveFileName(None, "请选择导出路径", default_table_file_name,
                                                      "Microsoft Excel文件(*.xlsx)", scd_file_dir)[0]
         if table_filepath != '':
+            # 编辑模型内部描述模板
+            export_type_list = list()
+            for row in range(self.ied_table.rowCount()):
+                if self.ied_table.item(row, 0).checkState():
+                    ied_fingerprint = '[%s]-[%s]' % tuple(map(lambda x: self.ied_table.item(row, x).text(), [4, 3]))
+                    if ied_fingerprint not in export_type_list:
+                        export_type_list.append(ied_fingerprint)
+            print(export_type_list)
+            export_template_dialog = ExportTemplateDialog(export_type_list)
+            export_template_dialog.exec()
+
             # 解析整个个SCD获取必要的信息
             def runtime_function(ied_info):
                 progress_percent = int(ied_info['index'] / self.ied_count * 80)
@@ -237,13 +249,20 @@ class IedSelectDialog(QDialog):
 
             # 单元格样式
             ied_header_format = workbook.add_format({
-                'align': 'center'
-            })
-            header_format = workbook.add_format({
                 'align': 'center',
                 'bold': 'true',
                 'fg_color': '#D1D1D1'
             })
+            if GlobalConfig.config_dict['exportMode'] == 0:
+                header_format = workbook.add_format({
+                    'align': 'center',
+                    'bold': 'true',
+                    'fg_color': '#D1D1D1'
+                })
+            elif GlobalConfig.config_dict['exportMode'] == 2:
+                header_format = workbook.add_format({
+                    'align': 'center'
+                })
             field_format = workbook.add_format({
                 'align': 'center'
             })
@@ -292,7 +311,7 @@ class IedSelectDialog(QDialog):
                     row += 3
             try:
                 workbook.close()
-            except Exception:
+            except Exception as e:
                 self.refreshOperateStatus("导出失败", 95)
                 QMessageBox.critical(None, "导出失败", "断链表导出至 %s 失败" % table_filepath)
                 self.operate_str.setText("等待")
