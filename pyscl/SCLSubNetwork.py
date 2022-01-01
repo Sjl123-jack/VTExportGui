@@ -1,8 +1,8 @@
 class SCLSubNetwork:
     def __init__(self, attributes):
         self.name = attributes['name']
-        self.desc = attributes['desc']
-        self._type = attributes['type']
+        self.desc = attributes.get('desc', '')
+        self._type = attributes.get('type', '')
         self._connected_ap_list = list()
 
     def __iter__(self):

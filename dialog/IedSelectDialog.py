@@ -41,16 +41,26 @@ class IedSelectDialog(QDialog):
         self.quit_btn.clicked.connect(self.close)
 
         self.statusBar = QStatusBar()
-        self.current_item_count_label = QLabel("当前选中项目个数: ")
-        self.current_item_count_label.setFrameShape(QFrame.WinPanel)
-        self.current_item_count_label.setFrameShadow(QFrame.Sunken)
-        self.statusBar.addWidget(self.current_item_count_label)
+        self.checked_item_count_label = QLabel("当前选中项目个数: ")
+        self.checked_item_count_label.setFrameShape(QFrame.WinPanel)
+        self.checked_item_count_label.setFrameShadow(QFrame.Sunken)
+        self.statusBar.addWidget(self.checked_item_count_label)
         self.checked_item_count = QLabel("0")
         self.checked_item_count.setFixedWidth(40)
         self.checked_item_count.setAlignment(Qt.AlignCenter)
         self.checked_item_count.setFrameShape(QFrame.WinPanel)
         self.checked_item_count.setFrameShadow(QFrame.Sunken)
         self.statusBar.addWidget(self.checked_item_count)
+        self.visible_item_count_label = QLabel("当前显示项目个数：")
+        self.visible_item_count_label.setFrameShape(QFrame.WinPanel)
+        self.visible_item_count_label.setFrameShadow(QFrame.Sunken)
+        self.statusBar.addWidget(self.visible_item_count_label)
+        self.visible_item_count = QLabel("0")
+        self.visible_item_count.setFixedWidth(40)
+        self.visible_item_count.setAlignment(Qt.AlignCenter)
+        self.visible_item_count.setFrameShape(QFrame.WinPanel)
+        self.visible_item_count.setFrameShadow(QFrame.Sunken)
+        self.statusBar.addWidget(self.visible_item_count)
         self.operate_str = QLabel("等待")
         self.operate_str.setFrameShape(QFrame.WinPanel)
         self.operate_str.setFrameShadow(QFrame.Sunken)
@@ -69,18 +79,24 @@ class IedSelectDialog(QDialog):
         self.statusBar.addWidget(self.operate_progress)
 
         self.pop_menu = QMenu()
-        self.select_current_ied_action = QAction('选中该装置')
-        self.select_current_ied_action.setIcon(QIcon('./img/add.png'))
-        self.deselect_current_ied_action = QAction('取消选中该装置')
-        self.deselect_current_ied_action.setIcon(QIcon('./img/delete.png'))
+        self.select_current_row_action = QAction('选中该装置')
+        self.select_current_row_action.setIcon(QIcon('./img/add.png'))
+        self.select_current_row_action.triggered.connect(self.selectCurrentRow)
+        self.deselect_current_row_action = QAction('取消选中该装置')
+        self.deselect_current_row_action.setIcon(QIcon('./img/delete.png'))
+        self.deselect_current_row_action.triggered.connect(self.deselectCurrentRow)
         self.adjust_same_type_action = QAction('同步同型号规则')
         self.adjust_same_type_action.setIcon(QIcon('./img/sync.png'))
         self.adjust_same_type_action.triggered.connect(self.adjustSameTypeRegular)
         self.select_all_item_below_action = QAction('选中下方所有装置')
         self.select_all_item_below_action.setIcon(QIcon('./img/down.png'))
         self.select_all_item_below_action.triggered.connect(self.selectAllItemBelow)
-        self.pop_menu.addActions([self.select_current_ied_action, self.deselect_current_ied_action,
-                                  self.adjust_same_type_action, self.select_all_item_below_action])
+        self.fast_configure_regular_action = QAction('快速配置规则')
+        self.fast_configure_regular_action.setIcon(QIcon('./img/fast_configure.png'))
+        self.fast_configure_regular_action.triggered.connect(self.fastConfigureRegular)
+        self.pop_menu.addActions([self.select_current_row_action, self.deselect_current_row_action,
+                                  self.adjust_same_type_action, self.select_all_item_below_action,
+                                  self.fast_configure_regular_action])
         self.ied_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ied_table.customContextMenuRequested.connect(self.popContextMenu)
 
@@ -88,6 +104,8 @@ class IedSelectDialog(QDialog):
         if GlobalConfig.config_dict['isRelateClassRegular']:
             for row in range(self.ied_table.rowCount()):
                 self.ied_table.cellWidget(row, 5).currentIndexChanged.connect(self.adjustSameTypeRegular)
+
+        self.refreshVisibleItemCount()
 
     def initUI(self):
         self.createIedTable()
@@ -153,6 +171,11 @@ class IedSelectDialog(QDialog):
 
     def popContextMenu(self, pos):
         screen_pos = self.ied_table.mapToGlobal(pos)
+        current_row = self.ied_table.currentRow()
+        self.select_current_row_action.setVisible(not self.ied_table.item(current_row, 0).checkState())
+        self.deselect_current_row_action.setVisible(self.ied_table.item(current_row, 0).checkState())
+        self.adjust_same_type_action.setVisible(not GlobalConfig.config_dict['isRelateClassRegular'])
+        self.fast_configure_regular_action.setVisible(GlobalConfig.config_dict['isRelateClassRegular'])
         self.pop_menu.popup(screen_pos)
 
     # 同步调整所有通类型装置的导出规则
@@ -178,6 +201,7 @@ class IedSelectDialog(QDialog):
                     self.ied_table.setRowHidden(row_num, False)
             self.refreshFilter()
             self.process_unchecked_item_btn.setText("隐藏非选中项")
+        self.refreshVisibleItemCount()
 
     def refreshFilter(self):
         column_num = self.filter_item_combobox.currentIndex() + 1
@@ -190,6 +214,7 @@ class IedSelectDialog(QDialog):
                     self.ied_table.setRowHidden(row_num, False)
             else:
                 self.ied_table.setRowHidden(row_num, False)
+        self.refreshVisibleItemCount()
 
     def selectAllVisibleRow(self):
         for row_num in range(self.ied_table.rowCount()):
@@ -212,16 +237,6 @@ class IedSelectDialog(QDialog):
         table_filepath = QFileDialog.getSaveFileName(None, "请选择导出路径", default_table_file_name,
                                                      "Microsoft Excel文件(*.xlsx)", scd_file_dir)[0]
         if table_filepath != '':
-            # 编辑模型内部描述模板
-            export_type_list = list()
-            for row in range(self.ied_table.rowCount()):
-                if self.ied_table.item(row, 0).checkState():
-                    ied_fingerprint = '[%s]-[%s]' % tuple(map(lambda x: self.ied_table.item(row, x).text(), [4, 3]))
-                    if ied_fingerprint not in export_type_list:
-                        export_type_list.append(ied_fingerprint)
-            print(export_type_list)
-            export_template_dialog = ExportTemplateDialog(export_type_list)
-            export_template_dialog.exec()
 
             # 解析整个个SCD获取必要的信息
             def runtime_function(ied_info):
@@ -270,6 +285,27 @@ class IedSelectDialog(QDialog):
             if GlobalConfig.config_dict['exportMode'] == 2:
                 worksheet = workbook.add_worksheet('全站断链表')
                 row = 0
+
+            # 编辑模型内部描述模板
+            # export_type_list = list()
+            # type_mask_dict = dict()
+            # ied_fingerprint_dict = dict()
+            # for row in range(self.ied_table.rowCount()):
+            #     if self.ied_table.item(row, 0).checkState():
+            #         ied_fingerprint = '[%s]-[%s]' % tuple(map(lambda x: self.ied_table.item(row, x).text(), [4, 3]))
+            #         ied_fingerprint_dict[self.ied_table.item(row, 1).text()] = ied_fingerprint
+            #         if ied_fingerprint not in export_type_list:
+            #             export_type_list.append(ied_fingerprint)
+            #             type_mask_dict[ied_fingerprint] = 0
+
+            # for ied_name in export_result.keys():
+            #     ied_result = export_result.get(ied_name)
+            #     ied_mask = reduce(lambda x, y: (x << 1) + y, list(map(lambda x: 1 if len(x) else 0 , ied_result)))
+            #     ied_fingerprint = ied_fingerprint_dict[ied_name]
+            #     type_mask_dict[ied_fingerprint] = type_mask_dict[ied_fingerprint] | ied_mask
+
+            # export_template_dialog = ExportTemplateDialog(export_type_list, type_mask_dict)
+            # export_template_dialog.exec()
 
             for ied_name in export_result.keys():
                 ied_result = export_result.get(ied_name)
@@ -329,9 +365,26 @@ class IedSelectDialog(QDialog):
                 checked_item_count += 1
         self.checked_item_count.setText(str(checked_item_count))
 
+    def refreshVisibleItemCount(self):
+        visible_item_count = 0
+        for row_num in range(self.ied_table.rowCount()):
+            if not self.ied_table.isRowHidden(row_num):
+                visible_item_count += 1
+        self.visible_item_count.setText(str(visible_item_count))
+
     def refreshOperateStatus(self, operate_str="等待", operate_percent=0.0):
         self.operate_str.setText(operate_str)
         self.operate_progress.setValue(int(operate_percent))
+
+    # 选中该行
+    def selectCurrentRow(self):
+        current_row = self.ied_table.currentRow()
+        self.ied_table.item(current_row, 0).setCheckState(Qt.Checked)
+
+    # 取消选中该行
+    def deselectCurrentRow(self):
+        current_row = self.ied_table.currentRow()
+        self.ied_table.item(current_row, 0).setCheckState(Qt.Unchecked)
 
     # 选中该行下方所有装置
     def selectAllItemBelow(self):
@@ -340,3 +393,15 @@ class IedSelectDialog(QDialog):
         for row in range(current_row, row_count):
             if not self.ied_table.isRowHidden(row):
                 self.ied_table.item(row, 0).setCheckState(Qt.Checked)
+
+    # 快速规则配置
+    def fastConfigureRegular(self):
+        ied_fingerprint_list = list()
+        row_count = self.ied_table.rowCount()
+        for row in range(row_count):
+            ied_fingerprint = '[%s]-[%s]' % tuple(map(lambda x: self.ied_table.item(row, x).text(), [4, 3]))
+            if ied_fingerprint not in ied_fingerprint_list:
+                ied_fingerprint_list.append(ied_fingerprint)
+            else:
+                self.ied_table.setRowHidden(row, True)
+        self.refreshVisibleItemCount()

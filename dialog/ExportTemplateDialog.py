@@ -4,9 +4,10 @@ from PyQt5.QtGui import QIcon
 
 
 class ExportTemplateDialog(QDialog):
-    def __init__(self, export_type_list):
+    def __init__(self, export_type_list, type_mask_dict):
         super().__init__()
         self.export_type_set = export_type_list
+        self.type_mask_dict = type_mask_dict
 
         # 设置对话框属性
         self.setWindowTitle('编辑导出模板')
@@ -34,10 +35,12 @@ class ExportTemplateDialog(QDialog):
         self.setLayout(main_layout)
 
     def createTemplateTable(self):
-        self.template_table.setColumnCount(5)
+        self.template_table.setColumnCount(4)
         self.template_table.setRowCount(len(self.export_type_set))
-        self.template_table.setHorizontalHeaderLabels(['生产厂商', '装置型号,', '站控层GOOSE模板', '过程层SV模板',
-                                                       '过程层GOOSE模板'])
-        self.template_table
+        self.template_table.setHorizontalHeaderLabels(['装置指纹', '站控层GOOSE模板', '过程层SV模板', '过程层GOOSE模板'])
         for index, ied_type in enumerate(self.export_type_set):
             self.template_table.setItem(index, 0, QTableWidgetItem(ied_type))
+            unzip_type_mask = tuple(map(lambda x: self.type_mask_dict[ied_type] & x, [0x04, 0x02, 0x01]))
+            for column_index, editable_flag in enumerate(unzip_type_mask):
+                item_flag = self.template_table.item(index, column_index + 1).flags() & (editable_flag << 2)
+                self.template_table.item(index, column_index + 1).setFlags()
