@@ -237,7 +237,6 @@ class IedSelectDialog(QDialog):
         table_filepath = QFileDialog.getSaveFileName(None, "请选择导出路径", default_table_file_name,
                                                      "Microsoft Excel文件(*.xlsx)", scd_file_dir)[0]
         if table_filepath != '':
-
             # 解析整个个SCD获取必要的信息
             def runtime_function(ied_info):
                 progress_percent = int(ied_info['index'] / self.ied_count * 80)
@@ -286,35 +285,40 @@ class IedSelectDialog(QDialog):
                 worksheet = workbook.add_worksheet('全站断链表')
                 row = 0
 
+            source_template_dict = None
+
             # 编辑模型内部描述模板
-            # export_type_list = list()
-            # type_mask_dict = dict()
-            # ied_fingerprint_dict = dict()
-            # for row in range(self.ied_table.rowCount()):
-            #     if self.ied_table.item(row, 0).checkState():
-            #         ied_fingerprint = '[%s]-[%s]' % tuple(map(lambda x: self.ied_table.item(row, x).text(), [4, 3]))
-            #         ied_fingerprint_dict[self.ied_table.item(row, 1).text()] = ied_fingerprint
-            #         if ied_fingerprint not in export_type_list:
-            #             export_type_list.append(ied_fingerprint)
-            #             type_mask_dict[ied_fingerprint] = 0
+            if GlobalConfig.config_dict['isExportSourceDesc']:
+                export_type_list = list()
+                type_mask_dict = dict()
+                ied_fingerprint_dict = dict()
+                for row in range(self.ied_table.rowCount()):
+                    if self.ied_table.item(row, 0).checkState():
+                        ied_fingerprint = '[%s]-[%s]' % tuple(map(lambda x: self.ied_table.item(row, x).text(), [4, 3]))
+                        ied_fingerprint_dict[self.ied_table.item(row, 1).text()] = ied_fingerprint
+                        if ied_fingerprint not in export_type_list:
+                            export_type_list.append(ied_fingerprint)
+                            type_mask_dict[ied_fingerprint] = 0
 
-            # for ied_name in export_result.keys():
-            #     ied_result = export_result.get(ied_name)
-            #     ied_mask = reduce(lambda x, y: (x << 1) + y, list(map(lambda x: 1 if len(x) else 0 , ied_result)))
-            #     ied_fingerprint = ied_fingerprint_dict[ied_name]
-            #     type_mask_dict[ied_fingerprint] = type_mask_dict[ied_fingerprint] | ied_mask
+                for ied_name in export_result.keys():
+                    ied_result = export_result.get(ied_name)
+                    ied_mask = reduce(lambda x, y: (x << 1) + y, list(map(lambda x: 1 if len(x) else 0, ied_result)))
+                    ied_fingerprint = ied_fingerprint_dict[ied_name]
+                    type_mask_dict[ied_fingerprint] = type_mask_dict[ied_fingerprint] | ied_mask
 
-            # export_template_dialog = ExportTemplateDialog(export_type_list, type_mask_dict)
-            # export_template_dialog.exec()
+                export_template_dialog = ExportTemplateDialog(export_type_list, type_mask_dict)
+                export_template_dialog.exec()
+                source_template_dict = export_template_dialog.getTemplateDict()
 
+            row = 0
             for ied_name in export_result.keys():
                 ied_result = export_result.get(ied_name)
-                ied_desc = scl.queryDescriptionByReference(ied_name)
+                ied = scl.getObjectByReference(ied_name)
                 if GlobalConfig.config_dict['exportMode'] == 0:
                     worksheet = workbook.add_worksheet(ied_name)
                     row = 0
                 elif GlobalConfig.config_dict['exportMode'] == 2:
-                    ied_title = '%s:%s断链信息表' % (ied_name, ied_desc)
+                    ied_title = '%s:%s断链信息表' % (ied_name, ied.desc)
                     worksheet.merge_range('A%s:B%s' % (row + 1, row + 1), ied_title, ied_header_format)
                     row += 1
                 worksheet.set_column(0, 0, width=30)
@@ -327,13 +331,18 @@ class IedSelectDialog(QDialog):
                         worksheet.write(row + 1, 0, '模型源描述', field_format)
                         worksheet.write(row + 1, 1, '断链信息描述', field_format)
                         row += 2
-                        for dataset_reference in ap_result:
+                        for dataset_index, dataset_reference in enumerate(ap_result):
+                            if source_template_dict:
+                                ied_fingerprint = '[%s]-[%s]' % (ied.manufacturer, ied.type)
+                                source_desc_template = source_template_dict.get(ied_fingerprint, '')[index]
+                                source_desc = source_desc_template.replace('[num]', '%d' % (dataset_index+1))
+                                worksheet.write(row, 0, source_desc)
                             external_ied_name = dataset_reference.split('+')[0]
                             external_ied_desc = scl.queryDescriptionByReference(external_ied_name)
                             appid_string = '%04X' % scl.getAppidByDatasetReference(dataset_reference)
                             replace_tuple_list = [GlobalConfig.config_dict['linkDescTemplate'],
                                                   ('[InIedname]', ied_name),
-                                                  ('[InIedDesc]', ied_desc),
+                                                  ('[InIedDesc]', ied.desc),
                                                   ('[ExIedname]', external_ied_name),
                                                   ('[ExIedDesc]', external_ied_desc),
                                                   ('[LinkType]',  link_type_dict[index]),
