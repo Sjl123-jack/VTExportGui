@@ -1,6 +1,6 @@
 {
  "isExportSourceDesc": true,
  "isRelateClassRegular": true,
- "exportMode": 2,
+ "exportMode": 1,
  "linkDescTemplate": "接收[ExIedDesc][LinkType]链路中断(0x[Appid])"
 }

@@ -6,6 +6,7 @@ from exportmethods import *
 import xlsxwriter
 from functools import reduce
 from .ExportTemplateDialog import ExportTemplateDialog
+from .ClassificationDialog import ClassificationDialog
 from GlobalConfig import GlobalConfig
 
 
@@ -258,32 +259,17 @@ class IedSelectDialog(QDialog):
 
             self.operate_str.setText("导出至%s..." % table_filepath)
             self.operate_progress.setValue(95)
-            # 导出至Excel表格
-            workbook = xlsxwriter.Workbook(table_filepath)
 
-            # 单元格样式
-            ied_header_format = workbook.add_format({
-                'align': 'center',
-                'bold': 'true',
-                'fg_color': '#D1D1D1'
-            })
-            if GlobalConfig.config_dict['exportMode'] == 0:
-                header_format = workbook.add_format({
-                    'align': 'center',
-                    'bold': 'true',
-                    'fg_color': '#D1D1D1'
-                })
-            elif GlobalConfig.config_dict['exportMode'] == 2:
-                header_format = workbook.add_format({
-                    'align': 'center'
-                })
-            field_format = workbook.add_format({
-                'align': 'center'
-            })
-
-            if GlobalConfig.config_dict['exportMode'] == 2:
-                worksheet = workbook.add_worksheet('全站断链表')
-                row = 0
+            # 编辑厂家分类信息
+            manufacturer_list = list()
+            for row in range(self.ied_table.rowCount()):
+                if self.ied_table.item(row, 0).checkState():
+                    if not self.ied_table.item(row, 4).text():
+                        manufacturer_str = self.ied_table.item(row, 3).text()
+                    else:
+                        manufacturer_str = self.ied_table.item(row, 4).text()
+                    if manufacturer_str not in manufacturer_list:
+                        manufacturer_list.append(manufacturer_str)
 
             source_template_dict = None
 
@@ -310,50 +296,94 @@ class IedSelectDialog(QDialog):
                 export_template_dialog.exec()
                 source_template_dict = export_template_dialog.getTemplateDict()
 
-            row = 0
-            for ied_name in export_result.keys():
-                ied_result = export_result.get(ied_name)
-                ied = scl.getObjectByReference(ied_name)
-                if GlobalConfig.config_dict['exportMode'] == 0:
-                    worksheet = workbook.add_worksheet(ied_name)
+            # 导出至Excel表格
+            workbook = xlsxwriter.Workbook(table_filepath)
+
+            def writeToWorksheet(export_result, mode, work_sheet_title="全站断链表"):
+                # 单元格样式
+                ied_header_format = workbook.add_format({
+                    'align': 'center',
+                    'bold': 'true',
+                    'fg_color': '#D1D1D1'
+                })
+                if mode == 0:
+                    header_format = workbook.add_format({
+                        'align': 'center',
+                        'bold': 'true',
+                        'fg_color': '#D1D1D1'
+                    })
+                elif mode == 2:
+                    header_format = workbook.add_format({
+                        'align': 'center'
+                    })
+                field_format = workbook.add_format({
+                    'align': 'center'
+                })
+
+                if mode == 2:
+                    worksheet = workbook.add_worksheet(work_sheet_title)
                     row = 0
-                elif GlobalConfig.config_dict['exportMode'] == 2:
-                    ied_title = '%s:%s断链信息表' % (ied_name, ied.desc)
-                    worksheet.merge_range('A%s:B%s' % (row + 1, row + 1), ied_title, ied_header_format)
-                    row += 1
-                worksheet.set_column(0, 0, width=30)
-                worksheet.set_column(1, 1, width=60)
-                for index, ap_result in list(enumerate(ied_result)):
-                    header_dict = {0: '站控层GOOSE断链表', 1: '过程层SV断链表', 2: '过程层GOOSE断链表'}
-                    link_type_dict = {0: 'GOOSE', 1: 'SV', 2: 'GOOSE'}
-                    if len(ap_result):
-                        worksheet.merge_range('A%s:B%s' % (row + 1, row + 1), header_dict[index], header_format)
-                        worksheet.write(row + 1, 0, '模型源描述', field_format)
-                        worksheet.write(row + 1, 1, '断链信息描述', field_format)
-                        row += 2
-                        for dataset_index, dataset_reference in enumerate(ap_result):
-                            if source_template_dict:
-                                ied_fingerprint = '[%s]-[%s]' % (ied.manufacturer, ied.type)
-                                source_desc_template = source_template_dict.get(ied_fingerprint, '')[index]
-                                source_desc = source_desc_template.replace('[num]', '%d' % (dataset_index+1))
-                                worksheet.write(row, 0, source_desc)
-                            external_ied_name = dataset_reference.split('+')[0]
-                            external_ied_desc = scl.queryDescriptionByReference(external_ied_name)
-                            appid_string = '%04X' % scl.getAppidByDatasetReference(dataset_reference)
-                            replace_tuple_list = [GlobalConfig.config_dict['linkDescTemplate'],
-                                                  ('[InIedname]', ied_name),
-                                                  ('[InIedDesc]', ied.desc),
-                                                  ('[ExIedname]', external_ied_name),
-                                                  ('[ExIedDesc]', external_ied_desc),
-                                                  ('[LinkType]',  link_type_dict[index]),
-                                                  ('[Appid]', appid_string)]
-                            link_desc = reduce(lambda x, y: x.replace(y[0], y[1]), replace_tuple_list)
-                            worksheet.write(row, 1, link_desc)
-                            row += 1
-                        if GlobalConfig.config_dict['exportMode'] == 0:
-                            row += 1
-                if GlobalConfig.config_dict['exportMode'] == 2:
-                    row += 3
+
+                row = 0
+                for ied_name in export_result.keys():
+                    ied_result = export_result.get(ied_name)
+                    ied = scl.getObjectByReference(ied_name)
+                    if mode == 0:
+                        worksheet = workbook.add_worksheet(ied_name)
+                        row = 0
+                    elif mode == 2:
+                        ied_title = '%s:%s断链信息表' % (ied_name, ied.desc)
+                        worksheet.merge_range('A%s:B%s' % (row + 1, row + 1), ied_title, ied_header_format)
+                        row += 1
+                    worksheet.set_column(0, 0, width=30)
+                    worksheet.set_column(1, 1, width=60)
+                    for index, ap_result in list(enumerate(ied_result)):
+                        header_dict = {0: '站控层GOOSE断链表', 1: '过程层SV断链表', 2: '过程层GOOSE断链表'}
+                        link_type_dict = {0: 'GOOSE', 1: 'SV', 2: 'GOOSE'}
+                        if len(ap_result):
+                            worksheet.merge_range('A%s:B%s' % (row + 1, row + 1), header_dict[index], header_format)
+                            worksheet.write(row + 1, 0, '模型源描述', field_format)
+                            worksheet.write(row + 1, 1, '断链信息描述', field_format)
+                            row += 2
+                            for dataset_index, dataset_reference in enumerate(ap_result):
+                                if source_template_dict:
+                                    ied_fingerprint = '[%s]-[%s]' % (ied.manufacturer, ied.type)
+                                    source_desc_template = source_template_dict.get(ied_fingerprint, '')[index]
+                                    source_desc = source_desc_template.replace('[num]', '%d' % (dataset_index+1))
+                                    worksheet.write(row, 0, source_desc)
+                                external_ied_name = dataset_reference.split('+')[0]
+                                external_ied_desc = scl.queryDescriptionByReference(external_ied_name)
+                                appid_string = '%04X' % scl.getAppidByDatasetReference(dataset_reference)
+                                replace_tuple_list = [GlobalConfig.config_dict['linkDescTemplate'],
+                                                      ('[InIedname]', ied_name),
+                                                      ('[InIedDesc]', ied.desc),
+                                                      ('[ExIedname]', external_ied_name),
+                                                      ('[ExIedDesc]', external_ied_desc),
+                                                      ('[LinkType]',  link_type_dict[index]),
+                                                      ('[Appid]', appid_string)]
+                                link_desc = reduce(lambda x, y: x.replace(y[0], y[1]), replace_tuple_list)
+                                worksheet.write(row, 1, link_desc)
+                                row += 1
+                            if mode == 0:
+                                row += 1
+                    if mode == 2:
+                        row += 3
+
+            if GlobalConfig.config_dict['exportMode'] == 1:
+                classification_dialog = ClassificationDialog(manufacturer_list)
+                classification_dialog.exec()
+                manufacturer_list, manufacturer_data = classification_dialog.getManufacturerData()
+                export_result_list = dict.fromkeys(manufacturer_list)
+                for ied_name in export_result.keys():
+                    ied = scl.getObjectByReference(ied_name)
+                    ied_manufacturer = manufacturer_data[ied.manufacturer if ied.manufacturer else ied.type]
+                    if export_result_list[ied_manufacturer] is None:
+                        export_result_list[ied_manufacturer] = {}
+                    export_result_list[ied_manufacturer][ied_name] = export_result[ied_name]
+                for work_sheet_title in export_result_list.keys():
+                    writeToWorksheet(export_result_list[work_sheet_title], mode=2, work_sheet_title=work_sheet_title)
+            else:
+                writeToWorksheet(export_result, mode=GlobalConfig.config_dict['exportMode'])
             try:
                 workbook.close()
             except Exception as e:

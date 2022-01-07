@@ -26,6 +26,8 @@ class TrayApp(QSystemTrayIcon):
         self.importScdAction = QAction('打开SCD', self)
         self.importScdAction.triggered.connect(self.importScd)
         self.importScdAction.setIcon(QIcon('img/open.png'))
+        self.recentFileAction = QAction('最近打开的文件')
+        self.recentFileAction.setIcon(QIcon('img/recent.png'))
         self.settingAction = QAction('设置', self)
         self.settingAction.triggered.connect(self.setting)
         self.settingAction.setIcon(QIcon('img/setting.png'))
@@ -39,10 +41,8 @@ class TrayApp(QSystemTrayIcon):
 
         # 设置任务栏图标菜单
         tray_menu = QMenu()
-        tray_menu.addAction(self.importScdAction)
-        tray_menu.addAction(self.settingAction)
-        tray_menu.addAction(self.aboutAction)
-        tray_menu.addAction(self.quitAction)
+        tray_menu.addActions([self.importScdAction, self.recentFileAction, self.settingAction, self.aboutAction,
+                              self.quitAction])
 
         self.setContextMenu(tray_menu)
 
@@ -51,6 +51,9 @@ class TrayApp(QSystemTrayIcon):
         self.scd_file_path = QFileDialog.getOpenFileName(None, "请选择SCD文件", "", "scd文件(*.scd)")[0]
         if self.scd_file_path:
             progress_dialog = QProgressDialog('解析SCD', '取消', 0, 0)
+            progress_dialog.setWindowTitle("正在解析")
+            progress_dialog.setWindowIcon(QIcon("./img/parse.png"))
+            progress_dialog.setFixedWidth(200)
             progress_dialog.show()
             ied_list = list()
             ied_count = 0
