@@ -1,3 +1,6 @@
+import re
+import json
+import os
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
@@ -17,6 +20,8 @@ class IedSelectDialog(QDialog):
         self.scd_file_path = scd_file_path
         self.ied_count = ied_count
         self.ied_table = QTableWidget()
+        self.ied_table.itemClicked.connect(self.editRegularCombobox)
+        self.ied_table.itemChanged.connect(self.checkIedSelected)
 
         self.filter_item_label = QLabel("过滤选项")
         self.filter_item_combobox = QComboBox()
@@ -103,8 +108,7 @@ class IedSelectDialog(QDialog):
 
         self.initUI()
         if GlobalConfig.config_dict['isRelateClassRegular']:
-            for row in range(self.ied_table.rowCount()):
-                self.ied_table.cellWidget(row, 5).currentIndexChanged.connect(self.adjustSameTypeRegular)
+            self.ied_table.itemChanged.connect(self.adjustSameTypeRegular)
 
         self.refreshVisibleItemCount()
 
@@ -136,8 +140,7 @@ class IedSelectDialog(QDialog):
         # 设置对话框的一些属性
         self.setWindowTitle('导出断链表-[%s]' % self.scd_file_path)
         self.setWindowIcon(QIcon('./img/export.png'))
-        self.setMinimumWidth(1200)
-        self.setMinimumHeight(700)
+        self.setMinimumSize(1000, 700)
 
     def createIedTable(self):
         self.ied_table.setColumnCount(6)
@@ -146,12 +149,14 @@ class IedSelectDialog(QDialog):
         self.ied_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.ied_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.ied_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.ied_table.horizontalHeader().setStretchLastSection(True)
         self.ied_table.setColumnWidth(0, 20)
-        self.ied_table.setColumnWidth(2, 360)
+        self.ied_table.setColumnWidth(2, 300)
         self.ied_table.setColumnWidth(3, 240)
 
         row_num = 0
-        regular_combobox_items = [export_method_class.desc for export_method_class in ExportMethod.__subclasses__()]
+        export_method_desc_dict = {export_method_class.__name__: export_method_class.desc for export_method_class in
+                                   ExportMethod.__subclasses__()}
         for ied in self.ied_list:
             check = QTableWidgetItem()
             check.setCheckState(Qt.Unchecked)
@@ -160,15 +165,35 @@ class IedSelectDialog(QDialog):
             self.ied_table.setItem(row_num, 2, QTableWidgetItem(ied['desc']))
             self.ied_table.setItem(row_num, 3, QTableWidgetItem(ied['type']))
             self.ied_table.setItem(row_num, 4, QTableWidgetItem(ied.get('manufacturer', '')))
-            regular_combobox = QComboBox()
-            regular_combobox.addItems(regular_combobox_items)
-            for export_method_class in ExportMethod.__subclasses__():
-                if ied['regular'] == export_method_class.__name__:
-                    regular_combobox.setCurrentIndex(export_method_class.index)
-            self.ied_table.setCellWidget(row_num, 5, regular_combobox)
+            self.ied_table.setItem(row_num, 5, QTableWidgetItem(export_method_desc_dict[ied['regular']]))
             row_num += 1
 
+        self.loadRegularCache()
+        self.refreshCheckedItemCount()
         self.ied_table.cellChanged.connect(self.refreshCheckedItemCount)
+
+    def editRegularCombobox(self, item):
+        for row_index in range(self.ied_table.rowCount()):
+            self.ied_table.removeCellWidget(row_index, 5)
+        current_row = item.row()
+        current_column = item.column()
+        current_regular_desc = item.text()
+        regular_combobox_items = [export_method_class.desc for export_method_class in ExportMethod.__subclasses__()]
+        self.regular_combobox = QComboBox()
+        self.regular_combobox.addItems(regular_combobox_items)
+        self.regular_combobox.activated.connect(self.editRegularText)
+        for export_method_class in ExportMethod.__subclasses__():
+            if current_regular_desc == export_method_class.desc:
+                self.regular_combobox.setCurrentIndex(export_method_class.index)
+        if current_column == 5:
+            self.ied_table.setCellWidget(current_row, current_column, self.regular_combobox)
+
+    def editRegularText(self):
+        current_row = self.ied_table.currentRow()
+        current_column = self.ied_table.currentColumn()
+        self.ied_table.removeCellWidget(current_row, current_column)
+        self.ied_table.setItem(current_row, current_column, QTableWidgetItem(self.regular_combobox.currentText()))
+        self.adjustSameTypeRegular()
 
     def popContextMenu(self, pos):
         screen_pos = self.ied_table.mapToGlobal(pos)
@@ -183,12 +208,12 @@ class IedSelectDialog(QDialog):
     def adjustSameTypeRegular(self):
         current_row = self.ied_table.currentRow()
         current_ied_fingerprint = '[%s]-[%s]' % tuple(map(lambda x: self.ied_table.item(current_row, x).text(), [4, 3]))
-        current_ied_regular = self.ied_table.cellWidget(current_row, 5).currentIndex()
+        current_ied_regular = self.ied_table.item(current_row, 5).text()
         row_count = self.ied_table.rowCount()
         for row in range(0, row_count):
             ied_fingerprint = '[%s]-[%s]' % tuple(map(lambda x: self.ied_table.item(row, x).text(), [4, 3]))
             if ied_fingerprint == current_ied_fingerprint and row != current_row:
-                self.ied_table.cellWidget(row, 5).setCurrentIndex(current_ied_regular)
+                self.ied_table.item(row, 5).setText(current_ied_regular)
 
     def processUncheckedRow(self):
         if self.process_unchecked_item_btn.text() == "隐藏非选中项":
@@ -230,6 +255,8 @@ class IedSelectDialog(QDialog):
         self.refreshCheckedItemCount()
 
     def exportLinkTable(self):
+        self.saveRegularCache()
+
         # 选择导出位置
         scd_file_name = self.scd_file_path.split('/')[-1]
         scd_file_dir = self.scd_file_path.replace(scd_file_name, '')
@@ -252,9 +279,9 @@ class IedSelectDialog(QDialog):
             for row_num in range(self.ied_table.rowCount()):
                 if self.ied_table.item(row_num, 0).checkState():
                     iedname = self.ied_table.item(row_num, 1).text()
-                    export_method_index = self.ied_table.cellWidget(row_num, 5).currentIndex()
+                    export_method_desc = self.ied_table.item(row_num, 5).text()
                     for export_method_class in ExportMethod.__subclasses__():
-                        if export_method_class.index == export_method_index:
+                        if export_method_class.desc == export_method_desc:
                             export_result[iedname] = export_method_class.generateLinkTable(iedname, scl)
 
             self.operate_str.setText("导出至%s..." % table_filepath)
@@ -275,9 +302,10 @@ class IedSelectDialog(QDialog):
 
             # 编辑模型内部描述模板
             if GlobalConfig.config_dict['isExportSourceDesc']:
-                export_type_list = list()
-                type_mask_dict = dict()
-                ied_fingerprint_dict = dict()
+                export_type_list = []
+                type_mask_dict = {}
+                ied_fingerprint_dict = {}
+                ied_example_dict = {}
                 for row in range(self.ied_table.rowCount()):
                     if self.ied_table.item(row, 0).checkState():
                         ied_fingerprint = '[%s]-[%s]' % tuple(map(lambda x: self.ied_table.item(row, x).text(), [4, 3]))
@@ -285,6 +313,7 @@ class IedSelectDialog(QDialog):
                         if ied_fingerprint not in export_type_list:
                             export_type_list.append(ied_fingerprint)
                             type_mask_dict[ied_fingerprint] = 0
+                            ied_example_dict[ied_fingerprint] = self.ied_table.item(row, 1).text()
 
                 for ied_name in export_result.keys():
                     ied_result = export_result.get(ied_name)
@@ -292,8 +321,13 @@ class IedSelectDialog(QDialog):
                     ied_fingerprint = ied_fingerprint_dict[ied_name]
                     type_mask_dict[ied_fingerprint] = type_mask_dict[ied_fingerprint] | ied_mask
 
-                export_template_dialog = ExportTemplateDialog(export_type_list, type_mask_dict)
-                export_template_dialog.exec()
+                export_template_dialog = ExportTemplateDialog(export_type_list, type_mask_dict, ied_example_dict,
+                                                              self.scd_file_path)
+                if not export_template_dialog.exec():
+                    self.operate_str.setText("等待")
+                    self.operate_progress.setValue(0)
+                    return
+
                 source_template_dict = export_template_dialog.getTemplateDict()
 
             # 导出至Excel表格
@@ -349,7 +383,18 @@ class IedSelectDialog(QDialog):
                                 if source_template_dict:
                                     ied_fingerprint = '[%s]-[%s]' % (ied.manufacturer, ied.type)
                                     source_desc_template = source_template_dict.get(ied_fingerprint, '')[index]
-                                    source_desc = source_desc_template.replace('[num]', '%d' % (dataset_index+1))
+                                    replace_pattern = re.compile(r"\[num,[01],[1-2]\]")
+                                    replace_str_list = replace_pattern.findall(source_desc_template)
+                                    source_desc = source_desc_template
+                                    for replace_str in replace_str_list:
+                                        replace_str_elements = replace_str.lstrip('[').rstrip(']').split(',')
+                                        offset = int(replace_str_elements[1])
+                                        padding = int(replace_str_elements[2])
+                                        if padding == 1:
+                                            number_str = "%d" % (dataset_index + offset)
+                                        else:
+                                            number_str = f"%0{padding}d" % (dataset_index + offset)
+                                        source_desc = source_desc.replace(replace_str, number_str)
                                     worksheet.write(row, 0, source_desc)
                                 external_ied_name = dataset_reference.split('+')[0]
                                 external_ied_desc = scl.queryDescriptionByReference(external_ied_name)
@@ -370,8 +415,12 @@ class IedSelectDialog(QDialog):
                         row += 3
 
             if GlobalConfig.config_dict['exportMode'] == 1:
-                classification_dialog = ClassificationDialog(manufacturer_list)
-                classification_dialog.exec()
+                classification_dialog = ClassificationDialog(manufacturer_list, self.scd_file_path)
+                if not classification_dialog.exec():
+                    self.operate_str.setText("等待")
+                    self.operate_progress.setValue(0)
+                    return
+
                 manufacturer_list, manufacturer_data = classification_dialog.getManufacturerData()
                 export_result_list = dict.fromkeys(manufacturer_list)
                 for ied_name in export_result.keys():
@@ -444,3 +493,37 @@ class IedSelectDialog(QDialog):
             else:
                 self.ied_table.setRowHidden(row, True)
         self.refreshVisibleItemCount()
+
+    # 检查是否有 ied 被选择
+    def checkIedSelected(self):
+        for row_index in range(self.ied_table.rowCount()):
+            check_state_item = self.ied_table.item(row_index, 0)
+            if check_state_item is not None and check_state_item.checkState() == 2:
+                self.export_btn.setEnabled(True)
+                return
+        self.export_btn.setEnabled(False)
+
+    # 保存规则缓存
+    def saveRegularCache(self):
+        regular_dict = {}
+        for row_index in range(self.ied_table.rowCount()):
+            ied_name = self.ied_table.item(row_index, 1).text()
+            check_state = self.ied_table.item(row_index, 0).checkState()
+            regular_str = self.ied_table.item(row_index, 5).text()
+            regular_dict[ied_name] = (check_state, regular_str)
+        scd_file_name = os.path.basename(self.scd_file_path)
+        with open('scd_cache/%s_regular.json' % scd_file_name, 'w', encoding='utf8') as regular_cache:
+            json.dump(regular_dict, regular_cache, indent=True, ensure_ascii=False)
+
+    # 加载规则缓存
+    def loadRegularCache(self):
+        scd_file_name = os.path.basename(self.scd_file_path)
+        cache_file_path = "scd_cache/%s_regular.json" % scd_file_name
+        if os.path.exists(cache_file_path):
+            with open(cache_file_path, 'r', encoding='utf8') as regular_cache:
+                regular_dict = json.load(regular_cache)
+            for row_index in range(self.ied_table.rowCount()):
+                ied_name = self.ied_table.item(row_index, 1).text()
+                if ied_name in regular_dict.keys():
+                    self.ied_table.item(row_index, 0).setCheckState(regular_dict[ied_name][0])
+                    self.ied_table.item(row_index, 5).setText(regular_dict[ied_name][1])

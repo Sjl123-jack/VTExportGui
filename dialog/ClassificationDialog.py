@@ -2,6 +2,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIcon
 from functools import partial
+import os
+import json
 
 
 class AddManufacturerDialog(QDialog):
@@ -32,7 +34,7 @@ class AddManufacturerDialog(QDialog):
 
         self.setWindowTitle("添加厂家")
         self.setWindowIcon(QIcon('./img/add.png'))
-        self.setMinimumSize(200, 50)
+        self.setMinimumSize(150, 50)
 
     def getManufacturerName(self):
         return self.manufacturer_lineedit.text()
@@ -112,7 +114,7 @@ class ManufacturerTreeWidget(QTreeWidget):
 class ClassificationDialog(QDialog):
     associate_complete = pyqtSignal(bool)
 
-    def __init__(self, manufacturer_list):
+    def __init__(self, manufacturer_list, scd_file_path):
         super().__init__()
         self.manufacturer_list_table = QTableWidget()
         self.manufacturer_list_table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -125,6 +127,8 @@ class ClassificationDialog(QDialog):
         for row in range(len(manufacturer_list)):
             self.manufacturer_list_table.setItem(row, 0, QTableWidgetItem(manufacturer_list[row]))
 
+        self.scd_file_path = scd_file_path
+
         self.select_button = QPushButton(' >> ')
         self.select_button.clicked.connect(self.associateToManufacturer)
         self.deselect_button = QPushButton(' << ')
@@ -136,10 +140,13 @@ class ClassificationDialog(QDialog):
         self.ok_button = QPushButton("确定")
         self.ok_button.setEnabled(False)
         self.associate_complete.connect(self.ok_button.setEnabled)
+        self.ok_button.clicked.connect(self.saveManufacturerCache)
         self.ok_button.clicked.connect(self.classification_tree.dumpManufacturerData)
-        self.ok_button.clicked.connect(self.close)
+        self.ok_button.clicked.connect(partial(self.setResult, True))
+        self.ok_button.clicked.connect(partial(self.setVisible, False))
 
         self.initUI()
+        self.loadRegularCache()
 
     def initUI(self):
         button_layout = QVBoxLayout()
@@ -167,9 +174,8 @@ class ClassificationDialog(QDialog):
 
         self.setMinimumHeight(500)
         self.setFixedWidth(600)
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
         self.setWindowIcon(QIcon("./img/classification.png"))
-        self.setWindowTitle("厂家分类")
+        self.setWindowTitle("厂家分组")
 
     def associateToManufacturer(self):
         current_row = self.manufacturer_list_table.currentRow()
@@ -180,7 +186,7 @@ class ClassificationDialog(QDialog):
 
     def cancelAssociateFromManufacturer(self):
         current_item = self.classification_tree.currentItem()
-        if current_item.parent() is not None:
+        if current_item is not None and current_item.parent() is not None:
             self.classification_tree.deleteManufacturer()
 
     def setManufacturerListVisible(self, manufacturer_list):
@@ -198,3 +204,24 @@ class ClassificationDialog(QDialog):
                 self.associate_complete.emit(False)
                 return
         self.associate_complete.emit(True)
+
+    def closeEvent(self, event):
+        if QMessageBox.question(None, "确认退出", "是否确认退出导出断链信息表？") == QMessageBox.Yes:
+            self.setResult(False)
+            event.accept()
+        else:
+            event.ignore()
+
+    # 保存厂家分类缓存
+    def saveManufacturerCache(self):
+        scd_file_name = os.path.basename(self.scd_file_path)
+        with open('scd_cache/%s_manufacturer.json' % scd_file_name, 'w', encoding='utf8') as manufacturer_cache:
+            json.dump(self.classification_tree.manufacturer_data, manufacturer_cache, indent=True, ensure_ascii=False)
+
+    # 加载规则缓存
+    def loadRegularCache(self):
+        scd_file_name = os.path.basename(self.scd_file_path)
+        cache_file_path = "scd_cache/%s_manufacturer.json" % scd_file_name
+        if os.path.exists(cache_file_path):
+            with open(cache_file_path, 'r', encoding='utf8') as regular_cache:
+                self.classification_tree.manufacturer_data = json.load(regular_cache)
